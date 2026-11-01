@@ -4,7 +4,13 @@ Personal unpacked Chrome extension that blocks ads with Manifest V3 declarativeN
 
 ## Setup
 
-Requires Node.js.
+Requires Node.js, which includes npm. On Windows, if `node` is not already available:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+Open a new terminal after that so `node` and `npm` are on `PATH`. The same installer is the LTS download at [nodejs.org](https://nodejs.org).
 
 ```powershell
 npm install
