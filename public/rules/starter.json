@@ -1,0 +1,51 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "requestDomains": [
+        "2mdn.net",
+        "adform.net",
+        "adnxs.com",
+        "adroll.com",
+        "adservice.google.com",
+        "adsrvr.org",
+        "advertising.com",
+        "amazon-adsystem.com",
+        "bidswitch.net",
+        "bluekai.com",
+        "casalemedia.com",
+        "contextweb.com",
+        "criteo.com",
+        "criteo.net",
+        "demdex.net",
+        "doubleclick.net",
+        "everesttech.net",
+        "exelator.com",
+        "google-analytics.com",
+        "googleadservices.com",
+        "googlesyndication.com",
+        "googletagservices.com",
+        "indexww.com",
+        "lijit.com",
+        "media.net",
+        "moatads.com",
+        "omtrdc.net",
+        "openx.net",
+        "outbrain.com",
+        "pubmatic.com",
+        "quantserve.com",
+        "rlcdn.com",
+        "rubiconproject.com",
+        "scorecardresearch.com",
+        "sharethrough.com",
+        "smartadserver.com",
+        "sonobi.com",
+        "taboola.com",
+        "triplelift.com",
+        "yieldmo.com"
+      ]
+    }
+  }
+]

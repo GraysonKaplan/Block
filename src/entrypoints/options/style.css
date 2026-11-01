@@ -1,0 +1,93 @@
+body {
+  padding: 28px 20px 48px;
+}
+
+main {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.card {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.card .row + .row {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.hint {
+  margin-top: 4px;
+}
+
+label {
+  display: block;
+  margin: 14px 0 6px;
+  color: var(--muted);
+}
+
+textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 10px 12px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #12151b;
+  font-family: Consolas, "Cascadia Mono", ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.list {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 12px;
+}
+
+.list input {
+  margin-top: 3px;
+  accent-color: var(--brass);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.save {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: var(--brass);
+  color: var(--brass-ink);
+  font-weight: 650;
+}
+
+.save:disabled {
+  opacity: 0.6;
+}
+
+.status {
+  white-space: pre-wrap;
+}
+
+code {
+  font-family: Consolas, "Cascadia Mono", ui-monospace, monospace;
+  font-size: 0.92em;
+  color: var(--text);
+}

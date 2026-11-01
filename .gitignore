@@ -1,0 +1,7 @@
+node_modules
+.wxt
+.output
+dist
+*.local
+public/rules/generated
+public/cosmetic/generated

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Block options</title>
+    <meta name="manifest.open_in_tab" content="true" />
+  </head>
+  <body>
+    <main>
+      <header class="top">
+        <div class="mark" aria-hidden="true"></div>
+        <div>
+          <h1>Block</h1>
+          <p class="sub">Personal ad blocker. It stays on this computer.</p>
+        </div>
+      </header>
+
+      <section class="card">
+        <div class="row">
+          <div>
+            <h2>Blocking</h2>
+            <p class="hint">Network rules run in Chrome before a request starts.</p>
+          </div>
+          <button class="switch" id="enabled" type="button" role="switch" aria-checked="true" aria-label="Blocking">
+            <span></span>
+          </button>
+        </div>
+        <div class="row">
+          <div>
+            <h2>Hide leftover slots</h2>
+            <p class="hint">Cosmetic filters inject CSS. They do not block the request.</p>
+          </div>
+          <button class="switch" id="cosmetic" type="button" role="switch" aria-checked="true" aria-label="Hide leftover slots">
+            <span></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Lists</h2>
+        <div id="lists"></div>
+      </section>
+
+      <section class="card">
+        <h2>Your filters</h2>
+        <label for="network">Network</label>
+        <textarea id="network" spellcheck="false" placeholder="||ads.example.com^&#10;||tracker.example.net^$script,third-party&#10;@@||good.example.com^"></textarea>
+        <label for="cosmetic-filters">Cosmetic</label>
+        <textarea id="cosmetic-filters" spellcheck="false" placeholder="example.com##.ad-slot&#10;##.ad-banner"></textarea>
+        <div class="actions">
+          <button class="save" id="save" type="button">Save filters</button>
+          <p class="status" id="status" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Full lists</h2>
+        <p class="hint">
+          The built-in starter list is only a handful of domains. Full coverage comes from the
+          lists uBlock Origin enables by default: EasyList, EasyPrivacy, Peter Lowe, and the
+          uBlock ads, privacy, badware, quick-fix, and unbreak lists. From this project, run
+          <code>npm run compile-filters</code> and then <code>npm run build</code>, then reload
+          the extension on <code>chrome://extensions</code>. A longer list will not remove a
+          YouTube ad that uses the same address as the video. A page script strips that ad
+          schedule from the player and skips an ad if one still starts. Pause youtube.com, or
+          turn blocking off, to stop the page script.
+        </p>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

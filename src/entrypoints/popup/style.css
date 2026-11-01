@@ -1,0 +1,60 @@
+body {
+  width: 300px;
+  padding: 14px 14px 10px;
+}
+
+.panel {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.host {
+  font-size: 15px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.count {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.action,
+.link {
+  border: 0;
+  background: transparent;
+}
+
+.action {
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--brass);
+  color: var(--brass-ink);
+  font-weight: 650;
+}
+
+.action:disabled {
+  background: #343944;
+  color: var(--muted);
+  cursor: default;
+}
+
+footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.link {
+  padding: 6px 2px;
+  color: var(--muted);
+}
+
+.link:hover {
+  color: var(--text);
+}

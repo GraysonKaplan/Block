@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Block</title>
+  </head>
+  <body>
+    <header class="top">
+      <div class="mark" aria-hidden="true"></div>
+      <div>
+        <h1>Block</h1>
+        <p class="sub" id="status-line">Checking this tab</p>
+      </div>
+      <button class="switch" id="enabled" type="button" role="switch" aria-checked="true" aria-label="Blocking">
+        <span></span>
+      </button>
+    </header>
+    <section class="panel">
+      <p class="host" id="host">This page</p>
+      <p class="count" id="count">0 blocked</p>
+      <button class="action" id="pause" type="button">Pause on this site</button>
+    </section>
+    <footer>
+      <button class="link" id="options" type="button">Options</button>
+    </footer>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
