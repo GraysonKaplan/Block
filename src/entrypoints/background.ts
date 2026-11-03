@@ -79,7 +79,7 @@ export default defineBackground(() => {
   browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (changeInfo.status !== 'loading') return;
     blockedCounts.set(tabId, 0);
-    void browser.action.setBadgeText({ tabId, text: '' });
+    showBadge(tabId, '');
   });
 
   browser.tabs.onRemoved.addListener((tabId) => {
@@ -92,10 +92,7 @@ export default defineBackground(() => {
     if (tabId < 0) return;
     const count = (blockedCounts.get(tabId) ?? 0) + 1;
     blockedCounts.set(tabId, count);
-    void browser.action.setBadgeText({
-      tabId,
-      text: count > 999 ? '999+' : String(count),
-    });
+    showBadge(tabId, count > 999 ? '999+' : String(count));
   });
 
   void loadSettings().then((settings) => enqueue(settings));
@@ -174,9 +171,37 @@ function removePause(settings: Settings, host: string): Partial<Settings> {
   };
 }
 
+function showBadge(tabId: number, text: string) {
+  // Prerendered and just-closed tabs reject with "No tab with id".
+  void browser.action.setBadgeText({ tabId, text }).catch((error: unknown) => {
+    if (missingTab(error)) {
+      blockedCounts.delete(tabId);
+      return;
+    }
+    console.error(error);
+  });
+}
+
+function missingTab(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.startsWith('No tab with id');
+}
+
 async function getTabState(tabId: number): Promise<TabState> {
   const settings = await loadSettings();
-  const tab = await browser.tabs.get(tabId);
+  let tab: Awaited<ReturnType<typeof browser.tabs.get>>;
+  try {
+    tab = await browser.tabs.get(tabId);
+  } catch (error) {
+    if (!missingTab(error)) throw error;
+    return {
+      enabled: settings.enabled,
+      host: null,
+      pausable: false,
+      paused: false,
+      blockedCount: 0,
+    };
+  }
   let host: string | null = null;
   let pausable = false;
   if (tab.url) {

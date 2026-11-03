@@ -1,6 +1,6 @@
 # Block
 
-Personal unpacked Chrome extension that blocks ads with Manifest V3 declarativeNetRequest rules. YouTube video ads are removed in the page, because those requests use the same addresses as the video.
+Personal unpacked Chrome extension that blocks ads with Manifest V3 declarativeNetRequest rules. YouTube video ads are removed in the page, because those requests use the same addresses as the video. If YouTube replaces the player with its ad-blocker warning, the page reloads that video until playback starts.
 
 ## Setup
 
@@ -11,6 +11,12 @@ winget install OpenJS.NodeJS.LTS
 ```
 
 Open a new terminal after that so `node` and `npm` are on `PATH`. The same installer is the LTS download at [nodejs.org](https://nodejs.org).
+
+If PowerShell says `npm.ps1 cannot be loaded because running scripts is disabled`, allow local scripts for your user, then open a new terminal:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
 
 ```powershell
 npm install

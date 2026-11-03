@@ -4,8 +4,10 @@ import { loadSettings, SETTINGS_KEY, type Settings } from '../lib/settings';
 const FLAG = 'block-youtube';
 const STYLE_ID = 'block-youtube-cosmetic';
 
+// #player-ads stays in the page. YouTube treats a hidden slot as an ad blocker
+// and replaces the video with the terms-of-service wall. Ad payloads are removed
+// in the player script, so the slot does not fill.
 const HIDDEN = [
-  '#player-ads',
   'ytd-ad-slot-renderer',
   'ytd-banner-promo-renderer',
   'ytd-in-feed-ad-layout-renderer',
