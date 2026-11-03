@@ -83,6 +83,7 @@ let originalUserAgent: string | undefined;
 let activeToken: string | null = null;
 let remainingTokens = [...TOKENS];
 let gaveUp = false;
+let holdControls = false;
 let watchedVideo = '';
 let attemptAt = 0;
 let attemptGen = 0;
@@ -603,6 +604,7 @@ function watchPlayer(page: Page) {
       gaveUp = false;
       attemptAt = 0;
       attemptGen = 0;
+      holdControls = false;
       playerRequestPending = false;
       playerRequestSeen = false;
       settleUntil = 0;
@@ -621,6 +623,7 @@ function watchPlayer(page: Page) {
       recover(page, player);
       return;
     }
+    if (holdControls) restoreChrome(player);
     const video = player?.querySelector('video') ?? document.querySelector('.html5-video-player video');
     if (video instanceof HTMLVideoElement && !video.paused && video.currentTime > 1) {
       gaveUp = false;
@@ -681,11 +684,11 @@ function revealPlayback(player: YtPlayer | null): boolean {
   if (!video) return false;
   // The picture is covered, but the element is already playing. Reloading would
   // start the wall over. Take the cover off instead.
-  player?.classList.remove('ytp-error');
-  player?.classList.add('block-reveal');
+  holdControls = true;
   rememberWorkingToken();
   ensureRevealStyle();
   removeWall(player);
+  restoreChrome(player);
   const container = video.closest('.html5-video-container');
   for (const el of [container, video]) {
     if (!(el instanceof HTMLElement)) continue;
@@ -716,17 +719,61 @@ function removeWall(player: YtPlayer | null) {
       seen.add(node);
       const text = `${node.textContent ?? ''}\n${node.shadowRoot?.textContent ?? ''}`;
       if (!hasWallCopy(text)) continue;
+      if (containsPlayback(node)) continue;
       if (node instanceof HTMLElement) node.style.setProperty('display', 'none', 'important');
       node.remove();
     }
   }
 }
 
+function containsPlayback(node: Element): boolean {
+  return (
+    node.id === 'movie_player' ||
+    node.classList.contains('html5-video-player') ||
+    !!node.querySelector('video.html5-main-video, .ytp-chrome-bottom, .ytp-chrome-controls')
+  );
+}
+
+const CHROME_SELECTOR = [
+  '.ytp-chrome-top',
+  '.ytp-chrome-bottom',
+  '.ytp-gradient-top',
+  '.ytp-gradient-bottom',
+  '.ytp-progress-bar-container',
+  '.ytp-chrome-controls',
+  '.ytp-left-controls',
+  '.ytp-right-controls',
+  '.ytp-progress-bar',
+].join(',');
+
+function restoreChrome(player: YtPlayer | null) {
+  const host = player ?? (document.getElementById('movie_player') as YtPlayer | null);
+  const video = currentVideo(host);
+  if (!host || !video) return;
+  if (video.paused && video.currentTime <= 0 && video.readyState < 2) return;
+  host.classList.add('block-reveal');
+  host.classList.remove('ytp-error', 'ytp-embed-error', 'unstarted-mode');
+  if (!video.ended) host.classList.remove('ended-mode');
+  const paused = video.paused || video.ended;
+  host.classList.toggle('paused-mode', paused);
+  host.classList.toggle('playing-mode', !paused);
+  ensureRevealStyle();
+  for (const el of host.querySelectorAll<HTMLElement>(CHROME_SELECTOR)) {
+    if (el.style.display === 'none') el.style.removeProperty('display');
+    if (el.style.visibility === 'hidden') el.style.removeProperty('visibility');
+  }
+}
+
+function currentVideo(player: YtPlayer | null): HTMLVideoElement | null {
+  const nodes = player?.querySelectorAll('video') ?? document.querySelectorAll('#movie_player video');
+  for (const node of nodes) {
+    if (node instanceof HTMLVideoElement) return node;
+  }
+  return null;
+}
+
 function ensureRevealStyle() {
-  if (document.getElementById(REVEAL_STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = REVEAL_STYLE_ID;
-  style.textContent = [
+  const css = [
     '#movie_player.block-reveal .html5-video-container,',
     '#movie_player.block-reveal video.html5-main-video {',
     '  display: block !important;',
@@ -734,11 +781,92 @@ function ensureRevealStyle() {
     '  opacity: 1 !important;',
     '}',
     '#movie_player.block-reveal #error-screen,',
+    '#movie_player.block-reveal .ytp-error-content-wrap,',
     '#movie_player.block-reveal ytd-enforcement-message-view-model,',
     '#movie_player.block-reveal yt-playability-error-supported-renderers {',
     '  display: none !important;',
     '}',
+    // The wall leaves the bar in the error state's hidden mode. Hover and pause
+    // bring back the same controls: time, volume, playback, and fullscreen.
+    '#movie_player.block-reveal:hover .ytp-chrome-top,',
+    '#movie_player.block-reveal:hover .ytp-chrome-bottom,',
+    '#movie_player.block-reveal:hover .ytp-gradient-top,',
+    '#movie_player.block-reveal:hover .ytp-gradient-bottom,',
+    '#movie_player.block-reveal:hover .ytp-progress-bar-container,',
+    '#movie_player.block-reveal.paused-mode .ytp-chrome-top,',
+    '#movie_player.block-reveal.paused-mode .ytp-chrome-bottom,',
+    '#movie_player.block-reveal.paused-mode .ytp-gradient-top,',
+    '#movie_player.block-reveal.paused-mode .ytp-gradient-bottom,',
+    '#movie_player.block-reveal.paused-mode .ytp-progress-bar-container,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-chrome-top,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-chrome-bottom,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-gradient-top,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-gradient-bottom,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-progress-bar-container {',
+    '  display: block !important;',
+    '  opacity: 1 !important;',
+    '  visibility: visible !important;',
+    '  pointer-events: auto !important;',
+    '  transform: translateY(0) !important;',
+    '  z-index: 80 !important;',
+    '}',
+    '#movie_player.block-reveal:hover .ytp-chrome-controls,',
+    '#movie_player.block-reveal:hover .ytp-left-controls,',
+    '#movie_player.block-reveal:hover .ytp-right-controls,',
+    '#movie_player.block-reveal.paused-mode .ytp-chrome-controls,',
+    '#movie_player.block-reveal.paused-mode .ytp-left-controls,',
+    '#movie_player.block-reveal.paused-mode .ytp-right-controls,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-chrome-controls,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-left-controls,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-right-controls {',
+    '  display: flex !important;',
+    '  opacity: 1 !important;',
+    '  visibility: visible !important;',
+    '  pointer-events: auto !important;',
+    '}',
+    '#movie_player.block-reveal:hover .ytp-chrome-bottom .ytp-button,',
+    '#movie_player.block-reveal:hover .ytp-time-display,',
+    '#movie_player.block-reveal.paused-mode .ytp-chrome-bottom .ytp-button,',
+    '#movie_player.block-reveal.paused-mode .ytp-time-display,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-chrome-bottom .ytp-button,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-time-display {',
+    '  display: inline-block !important;',
+    '  opacity: 1 !important;',
+    '  visibility: visible !important;',
+    '  pointer-events: auto !important;',
+    '}',
+    '#movie_player.block-reveal:hover .ytp-volume-area,',
+    '#movie_player.block-reveal.paused-mode .ytp-volume-area,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-volume-area {',
+    '  display: flex !important;',
+    '  opacity: 1 !important;',
+    '  visibility: visible !important;',
+    '  pointer-events: auto !important;',
+    '}',
+    '#movie_player.block-reveal:hover .ytp-progress-bar,',
+    '#movie_player.block-reveal.paused-mode .ytp-progress-bar,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-progress-bar {',
+    '  display: block !important;',
+    '  opacity: 1 !important;',
+    '  visibility: visible !important;',
+    '  pointer-events: auto !important;',
+    '}',
+    '#movie_player.block-reveal .ytp-volume-area:hover .ytp-volume-panel,',
+    '#movie_player.block-reveal .ytp-volume-area:hover .ytp-volume-slider {',
+    '  display: block !important;',
+    '  opacity: 1 !important;',
+    '  visibility: visible !important;',
+    '  pointer-events: auto !important;',
+    '}',
   ].join('\n');
+  const existing = document.getElementById(REVEAL_STYLE_ID);
+  if (existing) {
+    if (existing.textContent !== css) existing.textContent = css;
+    return;
+  }
+  const style = document.createElement('style');
+  style.id = REVEAL_STYLE_ID;
+  style.textContent = css;
   (document.documentElement ?? document.head).append(style);
 }
 
@@ -836,6 +964,7 @@ function recover(page: Page, player: YtPlayer | null) {
   }
   attemptGen += 1;
   attemptAt = Date.now();
+  holdControls = true;
   playerRequestPending = false;
   playerRequestSeen = false;
   target.loadVideoById(videoId, startSeconds(page, response));
