@@ -734,17 +734,21 @@ function containsPlayback(node: Element): boolean {
   );
 }
 
+// Direct children of the main bar only. Nested copies (miniplayer, menus)
+// keep YouTube's own display, or a hidden play icon shows up beside pause.
 const CHROME_SELECTOR = [
-  '.ytp-chrome-top',
-  '.ytp-chrome-bottom',
-  '.ytp-gradient-top',
-  '.ytp-gradient-bottom',
-  '.ytp-progress-bar-container',
-  '.ytp-chrome-controls',
-  '.ytp-left-controls',
-  '.ytp-right-controls',
-  '.ytp-progress-bar',
+  ':scope > .ytp-chrome-top',
+  ':scope > .ytp-chrome-bottom',
+  ':scope > .ytp-gradient-top',
+  ':scope > .ytp-gradient-bottom',
+  ':scope > .ytp-chrome-bottom > .ytp-progress-bar-container',
+  ':scope > .ytp-chrome-bottom > .ytp-chrome-controls',
+  ':scope > .ytp-chrome-bottom .ytp-left-controls',
+  ':scope > .ytp-chrome-bottom .ytp-right-controls',
+  ':scope > .ytp-chrome-bottom .ytp-progress-bar',
 ].join(',');
+
+const FLEX_CHROME = '.ytp-chrome-controls, .ytp-left-controls, .ytp-right-controls';
 
 function restoreChrome(player: YtPlayer | null) {
   const host = player ?? (document.getElementById('movie_player') as YtPlayer | null);
@@ -752,15 +756,83 @@ function restoreChrome(player: YtPlayer | null) {
   if (!host || !video) return;
   if (video.paused && video.currentTime <= 0 && video.readyState < 2) return;
   host.classList.add('block-reveal');
-  host.classList.remove('ytp-error', 'ytp-embed-error', 'unstarted-mode');
+  host.classList.remove('ytp-error', 'ytp-embed-error', 'unstarted-mode', 'ytp-hide-controls');
   if (!video.ended) host.classList.remove('ended-mode');
   const paused = video.paused || video.ended;
   host.classList.toggle('paused-mode', paused);
   host.classList.toggle('playing-mode', !paused);
   ensureRevealStyle();
-  for (const el of host.querySelectorAll<HTMLElement>(CHROME_SELECTOR)) {
-    if (el.style.display === 'none') el.style.removeProperty('display');
-    if (el.style.visibility === 'hidden') el.style.removeProperty('visibility');
+  for (const el of host.querySelectorAll<HTMLElement>(CHROME_SELECTOR)) showChromeBox(el);
+  liftSettingsMenu(host);
+}
+
+function showChromeBox(el: HTMLElement) {
+  if (el.style.visibility === 'hidden') el.style.removeProperty('visibility');
+  // Drop a display we forced earlier so YouTube's own flex/block can apply.
+  // getComputedStyle runs before the next paint, so a still-hidden box does not flash.
+  if (el.dataset.blockShown === '1' || el.style.display === 'none') el.style.removeProperty('display');
+  if (getComputedStyle(el).display !== 'none') {
+    delete el.dataset.blockShown;
+    return;
+  }
+  el.dataset.blockShown = '1';
+  el.style.setProperty('display', el.matches(FLEX_CHROME) ? 'flex' : 'block', 'important');
+}
+
+const LIFT_PROPS = ['display', 'opacity', 'visibility', 'z-index', 'pointer-events'] as const;
+
+function liftSettingsMenu(host: HTMLElement) {
+  const open =
+    !!host.querySelector('.ytp-settings-button[aria-expanded="true"]') ||
+    !!document.querySelector('.ytp-settings-menu[aria-hidden="false"]');
+  const inside = host.querySelectorAll<HTMLElement>('.ytp-settings-menu');
+  const menus = inside.length > 0 ? inside : document.querySelectorAll<HTMLElement>('.ytp-settings-menu');
+  if (!open) {
+    for (const menu of menus) dropLift(menu);
+    restoreMenuClip(host);
+    return;
+  }
+  for (const menu of menus) {
+    menu.dataset.blockLift = '1';
+    // The gear can spin while this panel stays under the video. Paint it above
+    // the picture and let it stick out of the control bar.
+    if (getComputedStyle(menu).display === 'none') menu.style.setProperty('display', 'block', 'important');
+    menu.style.setProperty('opacity', '1', 'important');
+    menu.style.setProperty('visibility', 'visible', 'important');
+    menu.style.setProperty('z-index', '80', 'important');
+    menu.style.setProperty('pointer-events', 'auto', 'important');
+    unclipMenu(menu, host);
+  }
+}
+
+function dropLift(menu: HTMLElement) {
+  if (menu.dataset.blockLift !== '1') return;
+  for (const prop of LIFT_PROPS) menu.style.removeProperty(prop);
+  delete menu.dataset.blockLift;
+}
+
+function unclipMenu(menu: HTMLElement, host: HTMLElement) {
+  let node = menu.parentElement;
+  while (node) {
+    const style = getComputedStyle(node);
+    if (style.overflow !== 'visible' || style.overflowY === 'hidden' || style.overflowY === 'clip') {
+      node.dataset.blockClip = '1';
+      node.style.setProperty('overflow', 'visible', 'important');
+    }
+    if (node === host) break;
+    node = node.parentElement;
+  }
+}
+
+function restoreMenuClip(host: HTMLElement) {
+  const clipped = host.querySelectorAll<HTMLElement>('[data-block-clip]');
+  for (const node of clipped) {
+    node.style.removeProperty('overflow');
+    delete node.dataset.blockClip;
+  }
+  if (host.dataset.blockClip) {
+    host.style.removeProperty('overflow');
+    delete host.dataset.blockClip;
   }
 }
 
@@ -786,76 +858,86 @@ function ensureRevealStyle() {
     '#movie_player.block-reveal yt-playability-error-supported-renderers {',
     '  display: none !important;',
     '}',
-    // The wall leaves the bar in the error state's hidden mode. Hover and pause
-    // bring back the same controls: time, volume, playback, and fullscreen.
-    '#movie_player.block-reveal:hover .ytp-chrome-top,',
-    '#movie_player.block-reveal:hover .ytp-chrome-bottom,',
-    '#movie_player.block-reveal:hover .ytp-gradient-top,',
-    '#movie_player.block-reveal:hover .ytp-gradient-bottom,',
-    '#movie_player.block-reveal:hover .ytp-progress-bar-container,',
-    '#movie_player.block-reveal.paused-mode .ytp-chrome-top,',
-    '#movie_player.block-reveal.paused-mode .ytp-chrome-bottom,',
-    '#movie_player.block-reveal.paused-mode .ytp-gradient-top,',
-    '#movie_player.block-reveal.paused-mode .ytp-gradient-bottom,',
-    '#movie_player.block-reveal.paused-mode .ytp-progress-bar-container,',
-    'ytd-player:hover #movie_player.block-reveal .ytp-chrome-top,',
-    'ytd-player:hover #movie_player.block-reveal .ytp-chrome-bottom,',
-    'ytd-player:hover #movie_player.block-reveal .ytp-gradient-top,',
-    'ytd-player:hover #movie_player.block-reveal .ytp-gradient-bottom,',
-    'ytd-player:hover #movie_player.block-reveal .ytp-progress-bar-container {',
-    '  display: block !important;',
+    // The wall leaves the bar slid off and faded. Bring the bar back on hover
+    // and while paused. Do not force button display.
+    '#movie_player.block-reveal:hover > .ytp-chrome-top,',
+    '#movie_player.block-reveal:hover > .ytp-chrome-bottom,',
+    '#movie_player.block-reveal.paused-mode > .ytp-chrome-top,',
+    '#movie_player.block-reveal.paused-mode > .ytp-chrome-bottom,',
+    'ytd-player:hover #movie_player.block-reveal > .ytp-chrome-top,',
+    'ytd-player:hover #movie_player.block-reveal > .ytp-chrome-bottom {',
     '  opacity: 1 !important;',
     '  visibility: visible !important;',
     '  pointer-events: auto !important;',
-    '  transform: translateY(0) !important;',
+    '}',
+    // translateY(0) is still a transform, so the open settings panel was stuck
+    // behind the video. none drops that stacking context. The bar stays above
+    // the picture; the menu (z-index 80) stays above the bar.
+    '#movie_player.block-reveal .ytp-chrome-top,',
+    '#movie_player.block-reveal .ytp-chrome-bottom {',
+    '  transform: none !important;',
+    '  overflow: visible !important;',
+    '  z-index: 30 !important;',
+    '}',
+    '#movie_player.block-reveal .ytp-chrome-controls,',
+    '#movie_player.block-reveal .ytp-right-controls,',
+    '#movie_player.block-reveal .ytp-right-controls-left,',
+    '#movie_player.block-reveal .ytp-right-controls-right,',
+    '#movie_player.block-reveal .ytp-settings-menu,',
+    '#movie_player.block-reveal .ytp-popup {',
+    '  overflow: visible !important;',
+    '}',
+    '#movie_player.block-reveal .ytp-settings-menu,',
+    '#movie_player.block-reveal .ytp-popup {',
     '  z-index: 80 !important;',
+    '}',
+    '#movie_player.block-reveal:hover > .ytp-gradient-top,',
+    '#movie_player.block-reveal:hover > .ytp-gradient-bottom,',
+    '#movie_player.block-reveal.paused-mode > .ytp-gradient-top,',
+    '#movie_player.block-reveal.paused-mode > .ytp-gradient-bottom,',
+    'ytd-player:hover #movie_player.block-reveal > .ytp-gradient-top,',
+    'ytd-player:hover #movie_player.block-reveal > .ytp-gradient-bottom {',
+    '  opacity: 1 !important;',
+    '  visibility: visible !important;',
+    '  pointer-events: none !important;',
     '}',
     '#movie_player.block-reveal:hover .ytp-chrome-controls,',
     '#movie_player.block-reveal:hover .ytp-left-controls,',
     '#movie_player.block-reveal:hover .ytp-right-controls,',
+    '#movie_player.block-reveal:hover .ytp-progress-bar-container,',
     '#movie_player.block-reveal.paused-mode .ytp-chrome-controls,',
     '#movie_player.block-reveal.paused-mode .ytp-left-controls,',
     '#movie_player.block-reveal.paused-mode .ytp-right-controls,',
+    '#movie_player.block-reveal.paused-mode .ytp-progress-bar-container,',
     'ytd-player:hover #movie_player.block-reveal .ytp-chrome-controls,',
     'ytd-player:hover #movie_player.block-reveal .ytp-left-controls,',
-    'ytd-player:hover #movie_player.block-reveal .ytp-right-controls {',
-    '  display: flex !important;',
+    'ytd-player:hover #movie_player.block-reveal .ytp-right-controls,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-progress-bar-container {',
     '  opacity: 1 !important;',
     '  visibility: visible !important;',
     '  pointer-events: auto !important;',
     '}',
-    '#movie_player.block-reveal:hover .ytp-chrome-bottom .ytp-button,',
     '#movie_player.block-reveal:hover .ytp-time-display,',
-    '#movie_player.block-reveal.paused-mode .ytp-chrome-bottom .ytp-button,',
-    '#movie_player.block-reveal.paused-mode .ytp-time-display,',
-    'ytd-player:hover #movie_player.block-reveal .ytp-chrome-bottom .ytp-button,',
-    'ytd-player:hover #movie_player.block-reveal .ytp-time-display {',
-    '  display: inline-block !important;',
-    '  opacity: 1 !important;',
-    '  visibility: visible !important;',
-    '  pointer-events: auto !important;',
-    '}',
     '#movie_player.block-reveal:hover .ytp-volume-area,',
-    '#movie_player.block-reveal.paused-mode .ytp-volume-area,',
-    'ytd-player:hover #movie_player.block-reveal .ytp-volume-area {',
-    '  display: flex !important;',
-    '  opacity: 1 !important;',
-    '  visibility: visible !important;',
-    '  pointer-events: auto !important;',
-    '}',
     '#movie_player.block-reveal:hover .ytp-progress-bar,',
+    '#movie_player.block-reveal.paused-mode .ytp-time-display,',
+    '#movie_player.block-reveal.paused-mode .ytp-volume-area,',
     '#movie_player.block-reveal.paused-mode .ytp-progress-bar,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-time-display,',
+    'ytd-player:hover #movie_player.block-reveal .ytp-volume-area,',
     'ytd-player:hover #movie_player.block-reveal .ytp-progress-bar {',
-    '  display: block !important;',
     '  opacity: 1 !important;',
     '  visibility: visible !important;',
     '  pointer-events: auto !important;',
     '}',
     '#movie_player.block-reveal .ytp-volume-area:hover .ytp-volume-panel,',
     '#movie_player.block-reveal .ytp-volume-area:hover .ytp-volume-slider {',
-    '  display: block !important;',
     '  opacity: 1 !important;',
     '  visibility: visible !important;',
+    '  pointer-events: auto !important;',
+    '}',
+    '#movie_player.block-reveal .ytp-popup,',
+    '#movie_player.block-reveal .ytp-settings-menu {',
     '  pointer-events: auto !important;',
     '}',
   ].join('\n');
